@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -8,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/joho/godotenv"
 )
@@ -43,7 +45,9 @@ func initializeServer() {
 }
 
 func cotacaoHandler(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
+	ctx, cancel := context.WithTimeout(r.Context(), 200*time.Millisecond)
+	defer cancel()
+
 	defer fmt.Println("Request Finished!")
 
 	apiBaseUrl := os.Getenv("API_BASE_URL")
@@ -71,7 +75,7 @@ func cotacaoHandler(w http.ResponseWriter, r *http.Request) {
 
 	select {
 	case <-ctx.Done():
-		w.Write([]byte("Request Canceled"))
+		log.Println("FODEU" + ctx.Err().Error())
 
 	default:
 		w.Header().Set("Content-Type", "application/json")
