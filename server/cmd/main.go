@@ -95,7 +95,18 @@ func (app App) CotacaoHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	app.createExchangeRate(ctx, er)
+	err = app.createExchangeRate(ctx, er)
+	if err != nil {
+		panic(err)
+	}
+
+	f, err := os.Create("cotacao.txt")
+	if err != nil {
+		panic(err)
+	}
+	defer f.Close()
+
+	f.Write([]byte(fmt.Sprintf("Dollar: %s", er["USDBRL"].Bid)))
 
 	select {
 	case <-ctx.Done():
@@ -110,7 +121,7 @@ func (app App) CotacaoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (app App) createExchangeRate(ctx context.Context, er ExchangeRateJsonResponse) {
+func (app App) createExchangeRate(ctx context.Context, er ExchangeRateJsonResponse) error {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
 	defer cancel()
 
@@ -131,8 +142,10 @@ func (app App) createExchangeRate(ctx context.Context, er ExchangeRateJsonRespon
 		VarBid:     usdBrl.VarBid,
 	}).Error
 	if err != nil {
-		panic(err)
+		return err
 	}
+
+	return nil
 }
 
 type App struct {

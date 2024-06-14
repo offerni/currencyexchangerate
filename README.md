@@ -20,7 +20,7 @@ Você precisará nos entregar dois sistemas em Go:
  
 - [x] Os 3 contextos deverão retornar erro nos logs caso o tempo de execução seja insuficiente.
  
-- [ ] O client.go terá que salvar a cotação atual em um arquivo "cotacao.txt" no formato: Dólar: {valor}
+- [x] O client.go terá que salvar a cotação atual em um arquivo "cotacao.txt" no formato: Dólar: {valor}
  
 - [x] O endpoint necessário gerado pelo server.go para este desafio será: /cotacao e a porta a ser utilizada pelo servidor HTTP será a 8080.
  
