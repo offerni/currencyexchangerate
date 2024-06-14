@@ -33,7 +33,7 @@ func initializeServer() {
 		port = "8080"
 	}
 
-	db, err := gorm.Open(sqlite.Open("mydatabase.db"), &gorm.Config{})
+	db, err := gorm.Open(sqlite.Open(fmt.Sprintf("%s.db", os.Getenv("DATABASE_NAME"))), &gorm.Config{})
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -114,7 +114,7 @@ func (app App) createExchangeRate(ctx context.Context, er ExchangeRateJsonRespon
 
 	usdBrl := er["USDBRL"] // not really re-usable, make it generic
 
-	app.Db.WithContext(ctx).Create(&ExchangeRate{
+	err := app.Db.WithContext(ctx).Create(&ExchangeRate{
 		Ask:        usdBrl.Ask,
 		Bid:        usdBrl.Bid,
 		Code:       usdBrl.Code,
@@ -127,7 +127,10 @@ func (app App) createExchangeRate(ctx context.Context, er ExchangeRateJsonRespon
 		PctChange:  usdBrl.PctChange,
 		Timestamp:  usdBrl.Timestamp,
 		VarBid:     usdBrl.VarBid,
-	})
+	}).Error
+	if err != nil {
+		panic(err)
+	}
 }
 
 type App struct {
