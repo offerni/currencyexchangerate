@@ -39,8 +39,7 @@ func initializeServer() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	err = db.AutoMigrate(&ExchangeRate{})
-	if err != nil {
+	if err := db.AutoMigrate(&ExchangeRate{}); err != nil {
 		panic(err)
 	}
 
@@ -94,10 +93,12 @@ func (app App) CotacaoHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		panic(err)
 	}
+
 	res, err := http.DefaultClient.Do(req)
 	if err != nil {
 		panic(err)
 	}
+
 	defer res.Body.Close()
 
 	result, err := io.ReadAll(res.Body)
@@ -106,23 +107,17 @@ func (app App) CotacaoHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var er ExchangeRateJsonResponse
-	err = json.Unmarshal(result, &er)
-	if err != nil {
+	if err := json.Unmarshal(result, &er); err != nil {
 		panic(err)
 	}
 
-	err = app.createExchangeRate(ctx, er)
-	if err != nil {
+	if err := app.createExchangeRate(ctx, er); err != nil {
 		panic(err)
 	}
 
-	f, err := os.Create("cotacao.txt")
-	if err != nil {
+	if err := createCurrentExchangeRateFile(er); err != nil {
 		panic(err)
 	}
-	defer f.Close()
-
-	f.Write([]byte(fmt.Sprintf("Dollar: %s", er["USDBRL"].Bid)))
 
 	select {
 	case <-ctx.Done():
@@ -157,6 +152,22 @@ func (app App) createExchangeRate(ctx context.Context, er ExchangeRateJsonRespon
 		Timestamp:  usdBrl.Timestamp,
 		VarBid:     usdBrl.VarBid,
 	}).Error
+
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func createCurrentExchangeRateFile(er ExchangeRateJsonResponse) error {
+	f, err := os.Create("cotacao.txt")
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+
+	_, err = f.Write([]byte(fmt.Sprintf("Dollar: %s", er["USDBRL"].Bid)))
 	if err != nil {
 		return err
 	}
