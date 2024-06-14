@@ -11,6 +11,10 @@ import (
 	"sync"
 	"time"
 
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
+
+	"github.com/google/uuid"
 	"github.com/joho/godotenv"
 )
 
@@ -28,10 +32,21 @@ func initializeServer() {
 		port = "8080"
 	}
 
+	db, err := gorm.Open(sqlite.Open("mydatabase.db"), &gorm.Config{})
+	if err != nil {
+		log.Fatal("Failed to connect to database:", err)
+	}
+
+	db.AutoMigrate(&ExchangeRate{})
+
 	mux := http.NewServeMux()
 
+	app := App{
+		Db: db,
+	}
+
 	// routes
-	mux.HandleFunc("/cotacao", cotacaoHandler)
+	mux.HandleFunc("/cotacao", app.CotacaoHandler)
 
 	var wg sync.WaitGroup
 	wg.Add(1)
@@ -44,7 +59,7 @@ func initializeServer() {
 	wg.Wait()
 }
 
-func cotacaoHandler(w http.ResponseWriter, r *http.Request) {
+func (app App) CotacaoHandler(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithTimeout(r.Context(), 200*time.Millisecond)
 	defer cancel()
 
@@ -67,27 +82,55 @@ func cotacaoHandler(w http.ResponseWriter, r *http.Request) {
 		panic(err)
 	}
 
-	var er ExchangeRateResponse
+	var er ExchangeRateJsonResponse
 	err = json.Unmarshal(result, &er)
 	if err != nil {
 		panic(err)
 	}
 
+	app.createExchangeRate(ctx, er)
+
 	select {
 	case <-ctx.Done():
-		log.Println("FODEU" + ctx.Err().Error())
+		log.Println(ctx.Err().Error())
 
 	default:
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		json.NewEncoder(w).Encode(er["USDBRL"].Bid) //TODO: make it more generic so it can support different keys
 	}
-
 }
 
-type ExchangeRateResponse map[string]ExchangeRate
+func (app App) createExchangeRate(ctx context.Context, er ExchangeRateJsonResponse) {
+	ctx, cancel := context.WithTimeout(ctx, 10*time.Millisecond)
+	defer cancel()
 
-type ExchangeRate struct {
+	usdBrl := er["USDBRL"] // not really re-usable, make it generic
+
+	app.Db.WithContext(ctx).Create(&ExchangeRate{
+		Ask:        usdBrl.Ask,
+		Bid:        usdBrl.Bid,
+		Code:       usdBrl.Code,
+		Codein:     usdBrl.Codein,
+		CreateDate: usdBrl.CreateDate,
+		High:       usdBrl.High,
+		ID:         uuid.New().String(),
+		Low:        usdBrl.Low,
+		Name:       usdBrl.Name,
+		PctChange:  usdBrl.PctChange,
+		Timestamp:  usdBrl.Timestamp,
+		VarBid:     usdBrl.VarBid,
+	})
+}
+
+type App struct {
+	Db *gorm.DB
+}
+
+type ExchangeRateJsonResponse map[string]ExchangeRateJson
+
+// http layer
+type ExchangeRateJson struct {
 	Code       string `json:"code"`
 	Codein     string `json:"codein"`
 	Name       string `json:"name"`
@@ -99,4 +142,20 @@ type ExchangeRate struct {
 	Ask        string `json:"ask"`
 	Timestamp  string `json:"timestamp"`
 	CreateDate string `json:"create_date"`
+}
+
+// model/repo layer
+type ExchangeRate struct {
+	ID         string `gorm:"primaryKey;type:TEXT"`
+	Code       string `gorm:"type:TEXT"`
+	Codein     string `gorm:"type:TEXT"`
+	Name       string `gorm:"type:TEXT"`
+	High       string `gorm:"type:TEXT"`
+	Low        string `gorm:"type:TEXT"`
+	VarBid     string `gorm:"type:TEXT"`
+	PctChange  string `gorm:"type:TEXT"`
+	Bid        string `gorm:"type:TEXT"`
+	Ask        string `gorm:"type:TEXT"`
+	Timestamp  string `gorm:"type:TEXT"`
+	CreateDate string `gorm:"type:TEXT"`
 }
