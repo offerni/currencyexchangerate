@@ -104,7 +104,9 @@ func (app App) CotacaoHandler(w http.ResponseWriter, r *http.Request) {
 	default:
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		json.NewEncoder(w).Encode(er["USDBRL"].Bid) //TODO: make it more generic so it can support different keys
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"bid": er["USDBRL"].Bid,
+		}) //TODO: make it more generic so it can support different keys
 	}
 }
 
