@@ -27,6 +27,7 @@ func initializeServer() {
 	if err != nil {
 		log.Fatalf("err loading: %v", err)
 	}
+
 	port := os.Getenv("SERVER_PORT")
 	if port == "" {
 		port = "8080"
@@ -37,7 +38,10 @@ func initializeServer() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
-	db.AutoMigrate(&ExchangeRate{})
+	err = db.AutoMigrate(&ExchangeRate{})
+	if err != nil {
+		panic(err)
+	}
 
 	mux := http.NewServeMux()
 
@@ -53,7 +57,10 @@ func initializeServer() {
 	go func() {
 		defer wg.Done()
 		fmt.Printf("Server Intialized on port :%s \n", port)
-		http.ListenAndServe(fmt.Sprintf(":%s", port), mux)
+		err = http.ListenAndServe(fmt.Sprintf(":%s", port), mux)
+		if err != nil {
+			log.Fatalf("Failed to start server: %v", err)
+		}
 	}()
 
 	wg.Wait()
