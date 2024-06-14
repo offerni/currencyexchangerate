@@ -39,6 +39,12 @@ func initializeServer() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
+	sqlDB, err := db.DB()
+	if err != nil {
+		panic(err)
+	}
+	defer sqlDB.Close()
+
 	if err := db.AutoMigrate(&ExchangeRate{}); err != nil {
 		panic(err)
 	}
