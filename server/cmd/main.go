@@ -8,7 +8,8 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"sync"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"gorm.io/driver/sqlite"
@@ -52,18 +53,33 @@ func initializeServer() {
 	// routes
 	mux.HandleFunc("/cotacao", app.CotacaoHandler)
 
-	var wg sync.WaitGroup
-	wg.Add(1)
+	srv := &http.Server{
+		Addr:    fmt.Sprintf(":%s", port),
+		Handler: mux,
+	}
+
 	go func() {
-		defer wg.Done()
 		fmt.Printf("Server Intialized on port :%s \n", port)
-		err = http.ListenAndServe(fmt.Sprintf(":%s", port), mux)
-		if err != nil {
+		err = srv.ListenAndServe()
+		if err != nil && http.ErrServerClosed != err {
 			log.Fatalf("Failed to start server: %v", err)
 		}
 	}()
 
-	wg.Wait()
+	stop := make(chan os.Signal, 1)
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM, syscall.SIGINT)
+	<-stop
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	fmt.Println("Shutting Down Server...")
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Fatalf("Could not shutdown server %v\n", err)
+	}
+	fmt.Println("Server Stopped")
+
 }
 
 func (app App) CotacaoHandler(w http.ResponseWriter, r *http.Request) {
